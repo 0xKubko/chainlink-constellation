@@ -2,22 +2,43 @@
 pragma solidity ^0.8.7;
 
 contract VotingRelayer {
-    // emitted when 3 votes are placed
-    event VotesPlaced(address indexed msgSender);
 
-    uint256 public votesNum = 0;
+    event VotesPlaced(bytes unprocessedVotes);
+    event VotesThresholdSet(uint256 votesThreshold);
 
-    constructor() {}
-
-    function emitVoteLog() public {
-        emit VotesPlaced(msg.sender);
-        votesNum = 0;
+    struct Vote {
+        uint8 option;
+        uint8 weight;
     }
 
-    function vote() public {
-        votesNum++;
-        if (votesNum == 2) {
+    Vote[] public unprocessedVotes;
+    uint256 public votesThreshold = 3;
+    bytes public encodedVotes;
+
+    constructor(uint256 _votesThreshold) {
+        votesThreshold = _votesThreshold;
+    }
+
+    function emitVoteLog() internal {
+        emit VotesPlaced(encodedVotes);
+        delete unprocessedVotes;
+        delete encodedVotes;
+    }
+
+    function vote(uint8 _option, uint8 _weight) public {
+        // this could include logic checking double-voting, eligibility, etc.
+        unprocessedVotes.push(Vote(_option, _weight));
+
+        encodedVotes = abi.encodePacked(encodedVotes, _option, _weight);
+
+        // if 3 votes are placed, emit the log & reset the votes
+        if (unprocessedVotes.length == votesThreshold) {
             emitVoteLog();
         }
+    }
+
+    function setVotesThreshold(uint256 _votesThreshold) public {
+        votesThreshold = _votesThreshold;
+        emit VotesThresholdSet(_votesThreshold);
     }
 }
